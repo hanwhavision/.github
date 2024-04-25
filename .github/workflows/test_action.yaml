@@ -1,0 +1,13 @@
+name: Github Action TEST
+run-name: github action test for internal repository
+
+on:
+  workflow_call:
+
+jobs:
+  Test2:
+    runs-on: ubuntu-latest
+    steps:
+    - name: test 2
+      run: |
+        echo test 2
