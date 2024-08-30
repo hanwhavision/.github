@@ -1,5 +1,5 @@
-name: SightMind Backend Deploy
-run-name: SightMind Backend Deploy - ${{ inputs.release_env }}
+name: Magic Backend Deploy
+run-name: Magic Backend Deploy - ${{ inputs.release_env }}
 
 permissions: write-all
 
