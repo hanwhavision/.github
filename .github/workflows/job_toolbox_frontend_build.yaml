@@ -128,12 +128,12 @@ jobs:
           # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
           if [ "${{ inputs.target_branch }}" == "production" ]; then
             if [ "${{ inputs.target_version }}" == "hotfix" ]; then
-              # aws s3 sync s3://tbp020-toolboxplus-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }}/ --delete --region ${{ needs.initial-tasks.outputs.region }}
+              # aws s3 sync s3://tbp020-toolboxplus-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
             else
-              aws s3 sync s3://tbp020-toolboxplus-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }}/ --delete --region ${{ needs.initial-tasks.outputs.region }}
+              aws s3 sync s3://tbp020-toolboxplus-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
             fi
           else
-            aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }}/ --delete --region ${{ needs.initial-tasks.outputs.region }}
+            aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
           fi
 
           # Setting CloudFront
