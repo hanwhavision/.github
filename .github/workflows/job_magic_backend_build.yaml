@@ -1,5 +1,5 @@
 name: SightMind Backend Deploy
-run-name: SightMind Backend Deploy - ${{ inputs.release_env }}
+run-name: ${{ inputs.backend_repo}} - ${{ inputs.release_env }}
 
 permissions: 
   id-token: write
@@ -61,7 +61,7 @@ jobs:
           echo "region=${{ vars.REGION }}" >> $GITHUB_OUTPUT
           echo "s3_bucket=${{ vars.S3_BUCKET }}" >> $GITHUB_OUTPUT
           echo "s3_account=${{ vars.S3_ACCOUNT }}" >> $GITHUB_OUTPUT
-          
+
   pnpm-build:
     name: Run Node Build
     runs-on: ubuntu-latest
