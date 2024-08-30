@@ -1,5 +1,5 @@
 name: Magic Backend Deploy
-run-name: Magic Backend Deploy - ${{ inputs.release_env }}
+run-name: ${{ inputs.backend_repo}} - ${{ inputs.release_env }}
 
 permissions: write-all
 

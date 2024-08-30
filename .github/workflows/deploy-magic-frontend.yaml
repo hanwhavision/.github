@@ -1,5 +1,5 @@
 name: Magic Frontend Deploy
-run-name: Magic Frontend Deploy - ${{ inputs.release_env }}
+run-name: ${{ inputs.frontend_repo}} - ${{ inputs.release_env }}
 
 permissions: write-all
 
