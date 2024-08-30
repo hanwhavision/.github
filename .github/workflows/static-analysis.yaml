@@ -1,0 +1,168 @@
+name: source code quality check
+
+run-name: R${{ github.run_number }} with branch ${{ inputs.BRANCH }} 🚀
+
+on:
+  workflow_call:
+    inputs:
+      CIM_SERVER:
+        description: 'Domain of cim server'
+        required: false
+        type: string
+        default: "cim.kdoggy.systems"
+      REPO_NAME:
+        description: 'Name of repository'
+        required: true
+        type: string
+        default: 'sightmind-backend-mono'
+      BUILD_PATH:
+        description: 'Target Path under repository'
+        required: true
+        type: string
+        default: '.'
+      QUALITY_REPORT:
+        description: 'Make static analysis result report'
+        required: false
+        type: boolean
+        default: true
+      DEPLOY:
+        required: false
+        type: string
+        default: 'development'
+      STREAM:
+        required: false
+        type: string
+      DISPATCH:
+        description: 'DISPATCH TRUE'
+        required: false
+        type: boolean
+        default: false
+      BRANCH:
+        description: 'Target Branch'
+        required: false
+        type: string
+        default: 'release'
+      environment:
+        type: string
+        description: environment for env_secret
+        required: false
+    secrets:
+      GH_MANAGEPACKAGE_TOKEN:
+        required: true
+
+
+
+jobs:
+  coverity:
+    name: Quality Check
+    
+    runs-on: ubuntu-latest
+
+    environment: ${{ inputs.environment }}
+
+    permissions:
+      deployments: write
+    
+    env:
+      ANALYSIS_PATH: ./${{ inputs.REPO_NAME }}/${{ inputs.BUILD_PATH }}
+    
+    container:
+        image: ghcr.io/hanwhavision/coverity-github:1.0.0
+        options: --user root
+        credentials:
+          username: jenkins
+          password: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
+
+    steps:
+      - name: Greeting
+        run: |
+          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+          echo "github.job: ${{ github.job }}"
+          echo "REPO_NAME: $REPO_NAME"
+          echo "QUALITY_REPORT: $QUALITY_REPORT"
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE" #/__w/helloworld/helloworld
+        env:
+          REPO_NAME: ${{ inputs.REPO_NAME }}
+          QUALITY_REPORT: ${{ inputs.QUALITY_REPORT }}
+
+      - name: Checkout
+        if: inputs.DISPATCH == false
+        uses: actions/checkout@v4
+        with:       
+          path: ./${{ inputs.REPO_NAME }}
+          token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
+
+      - name: Checkout-dispatch
+        if: inputs.DISPATCH == true
+        uses: actions/checkout@v4
+        with:
+          repository: cloud-development-team/${{ inputs.REPO_NAME }}
+          ref: refs/heads/${{ inputs.BRANCH }}
+          path: ./${{ inputs.REPO_NAME }}
+          token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
+
+      - uses: chrnorm/deployment-action@v2
+        name: Create GitHub deployment
+        id: deployment
+        with:
+          token: '${{ github.token }}'
+          environment: ${{ inputs.DEPLOY }}
+
+      - name: coverity
+        if: inputs.QUALITY_REPORT == true
+        working-directory: ${{ env.ANALYSIS_PATH }}
+        run: |
+          echo "CI_STEP_StaticAnalysis"
+
+          if [ "${{ inputs.STREAM }}" != "" ] ; then
+            STREAM="${{ inputs.STREAM }}"
+          else
+            STREAM="${{ inputs.REPO_NAME }}"
+          fi
+
+          echo "STREAM is $STREAM"
+
+          CSA_DIR=/home/jenkins/cov-analysis
+          COVERITY_CONFIG=${GITHUB_WORKSPACE}/coverity_config
+          COVERITY_CONFIG_XML=${GITHUB_WORKSPACE}/coverity_config/config.xml
+          COVERITY_INTERMEDIATE=${GITHUB_WORKSPACE}/coverity_emit_data
+          CIM_USER=stream_account
+          CIM_PASSWD=stream
+
+          mkdir $COVERITY_CONFIG
+          mkdir $COVERITY_INTERMEDIATE
+          ${CSA_DIR}/bin/cov-configure --config ${COVERITY_CONFIG_XML} --javascript
+          ${CSA_DIR}/bin/cov-configure --config ${COVERITY_CONFIG_XML} --typescript
+          
+          APP_REVISION=`git rev-parse --short HEAD`;
+          ${CSA_DIR}/bin/cov-build --config ${COVERITY_CONFIG_XML} --dir ${COVERITY_INTERMEDIATE} -fs-capture-search ${GITHUB_WORKSPACE}/${{ env.ANALYSIS_PATH }} --no-command
+          ${CSA_DIR}/bin/cov-analyze --aggressiveness-level high --all --dir ${COVERITY_INTERMEDIATE} --wait-for-license
+          cov_commit="${CSA_DIR}/bin/cov-commit-defects --url https://${CIM_USER}:${CIM_PASSWD}@${{ inputs.CIM_SERVER }} --ssl --stream ${STREAM} --dir ${COVERITY_INTERMEDIATE} --version ${APP_REVISION}";
+          max_try_count=5;
+          while ! ${cov_commit} && [ $max_try_count -ne 0 ]; do
+              echo "Remaining  try-count : ${max_try_count}";
+              max_try_count=$((max_try_count-1)); 
+              sleep 120;
+              if [ $max_try_count -eq "0" ] ; then
+                  echo "fail cov-commit";
+                  exit 1;
+              fi
+          done
+
+      - name: Update deployment status (success)
+        if: success()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: '${{ github.token }}'
+          environment-url: ${{ steps.deployment.outputs.environment_url }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: 'success'
+
+      - name: Update deployment status (failure)
+        if: failure()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: '${{ github.token }}'
+          environment-url: ${{ steps.deployment.outputs.environment_url }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: 'failure'

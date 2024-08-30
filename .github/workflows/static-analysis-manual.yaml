@@ -1,0 +1,62 @@
+name: Manual Static Analysis
+ 
+run-name: '[${{inputs.STREAM}}] ${{ github.event.sender.login }} executed manual static analysis'
+
+on:
+  workflow_dispatch:
+    inputs:
+      STREAM:
+        description: 'Repository'
+        required: true
+        type: choice
+        default: 'Insert Repo Name'
+        options:  
+          - magic-common-backend
+          - magic-toolbox-frontend
+          - magic-cms-frontend
+      ANALYSIS_PATH:
+        description: 'Target Path'
+        required: true
+        type: string
+        default: '.'
+      BRANCH:
+        description: 'Target Branch'
+        required: true
+        type: string
+        default: 'release'
+      QUALITY_REPORT:
+        description: 'Make static analysis report'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  initial-tasks: 
+    name: Initial tasks
+    runs-on: ubuntu-latest
+    outputs:
+      REPO_NAME: ${{ steps.set_env.outputs.REPO_NAME }}
+      GH_MANAGEPACKAGE_TOKEN: ${{ secrets.GH_MANAGEPACKAGE_TOKEN}}
+    steps:
+      - name: Set STREAM Env
+        id: set_env
+        run: |
+          REPO_NAME=${{inputs.STREAM}}
+
+          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_OUTPUT
+          echo $REPO_NAME
+            
+  static-analysis:
+    name: Analysis code quality
+    uses: ./.github/workflows/static-analysis.yaml
+    needs: [initial-tasks]
+    with:
+      REPO_NAME: ${{ needs.initial-tasks.outputs.REPO_NAME }}
+      BUILD_PATH: ${{ inputs.ANALYSIS_PATH }}
+      QUALITY_REPORT: ${{ inputs.QUALITY_REPORT }}
+      DISPATCH: true
+      BRANCH: ${{ inputs.BRANCH }}
+      STREAM: ${{ inputs.STREAM }}
+      environment: ${{ github.ref_name }}
+    secrets:
+      GH_MANAGEPACKAGE_TOKEN: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}

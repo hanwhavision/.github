@@ -1,0 +1,153 @@
+name: Release Jira Version
+
+run-name: 'create_release: ${{ inputs.jira_key }}-${{ inputs.release_version }} by ${{ github.event.sender.login }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      jira_key:
+        description: 'Jira Project Key'
+        required: true
+        default: 'KDOG'
+        type: string
+      release_version:
+        description: 'Release Version'
+        required: true
+        default: ""
+        type: string
+      release_env:
+        description: 'Release Environment'
+        required: true
+        default: ""
+        type: string
+
+jobs:
+  initial_setting:
+    name: Initial Setting
+    runs-on: ubuntu-latest
+    if: github.actor == 'jenkins-se'
+    outputs:
+      backend_repo: ${{ steps.set_env.outputs.backend_repo }}
+      toolbox_frontend_repo: ${{ steps.set_env.outputs.toolbox_frontend_repo }}
+      datahub_frontend_repo: ${{ steps.set_env.outputs.datahub_frontend_repo }}
+      release_env: ${{ steps.set_env.outputs.release_env }}
+      release_version: ${{ steps.set_env.outputs.release_version }}
+      target_branch: ${{ steps.set_env.outputs.target_branch }}
+      target_version: ${{ steps.set_env.outputs.target_version }}
+      matrix: ${{ steps.set_env.outputs.matrix }}
+    
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      - name: Repository List
+        id: set_env
+        run: |
+          if [ "${{ inputs.jira_key }}" == "MAG" ]; then
+            backend_repo=magic-common-backend
+            toolbox_frontend_repo=magic-toolbox-frontend
+            datahub_frontend_repo=magic-cms-frontend
+            matrix=$(jq -c '.' .github/workflows/files/matrix-magic-target-repo.json)
+
+            echo "backend_repo=$backend_repo" >> $GITHUB_OUTPUT
+            echo "toolbox_frontend_repo=$toolbox_frontend_repo" >> $GITHUB_OUTPUT
+            echo "datahub_frontend_repo=$datahub_frontend_repo" >> $GITHUB_OUTPUT
+            echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          fi
+
+          if grep -q "QA" <<< "${{ inputs.release_env }}"; then
+            target_branch=release
+          elif grep -q "PROD" <<< "${{ inputs.release_env }}"; then
+            target_branch=production
+          elif grep -q "hotfix" <<< "${{ inputs.release_env }}"; then
+            target_branch=production
+            target_version=hotfix
+          else
+            target_branch=null
+          fi
+          
+          echo "target_branch=$target_branch" >> $GITHUB_OUTPUT
+          echo "target_version=$target_version" >> $GITHUB_OUTPUT
+          echo "release_env=${{ inputs.release_env }}" >> $GITHUB_OUTPUT
+          echo "release_version=${{ inputs.release_version }}" >> $GITHUB_OUTPUT
+
+      - name: Fail if environment is unknown
+        if: ${{ steps.set_env.outputs.release_env == null }}
+        run: |
+          echo "Environment is not QA, PROD, or HOTFIX. Failing the workflow."
+          exit 1
+
+  parallel-create-release:
+    name: parallel create release
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    needs: [initial_setting]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.initial_setting.outputs.matrix) }}
+        
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: hanwhavision/${{ matrix.repo }}
+          ref: refs/heads/${{ needs.initial_setting.outputs.target_branch }}
+          token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
+
+      - name: Create Github Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
+        with:
+          tag_name: ${{ inputs.release_version }}
+          release_name: ${{ inputs.release_version }}
+          repo: ${{ matrix.repo }}
+          commitish: ${{ needs.initial_setting.outputs.target_branch }}
+          body: |
+            🤖 This release was created by ${{ github.event.sender.login }}.
+            - More information about this release can be found in Jira Release. 🔍
+            - Jira Release should have a release like this version. If the same version is not there, contact DevOps. 📞
+            - [Jira Release Link](https://hanwhavision.atlassian.net/projects/${{ inputs.jira_key }}?selectedItem=com.atlassian.jira.jira-projects-plugin%3Arelease-page)
+
+      - name: Github Release Result
+        run: |
+          echo "🔍 Check the release results"
+          echo "🔗 Github Release Link : https://github.com/hanwhavision/${{ matrix.repo }}/releases/tag/${{ inputs.release_version }}" 
+
+  magic-backend:
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    needs: [initial_setting, parallel-create-release]
+    name: SightMind Backend Deploy
+    uses: ./.github/workflows/deploy-magic-backend.yaml
+    with:
+      release_env: ${{ inputs.release_env }}
+      backend_repo: ${{ needs.initial_setting.outputs.backend_repo }}
+      target_branch: ${{ needs.initial_setting.outputs.target_branch }}
+      release_version: ${{ needs.initial_setting.outputs.release_version }}
+      target_version: ${{ needs.initial_setting.outputs.target_version }}
+    secrets: inherit  
+
+  toolbox-frontend:
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    needs: [initial_setting, parallel-create-release]
+    name: SightMind Frontend Deploy
+    uses: ./.github/workflows/deploy-magic-frontend.yaml
+    with:
+      release_env: ${{ inputs.release_env }}
+      frontend_repo: ${{ needs.initial_setting.outputs.toolbox_frontend_repo }}
+      target_branch: ${{ needs.initial_setting.outputs.target_branch }}
+      release_version: ${{ needs.initial_setting.outputs.release_version }}
+      target_version: ${{ needs.initial_setting.outputs.target_version }}
+    secrets: inherit  
+
+  datahub-frontend:
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    needs: [initial_setting, parallel-create-release]
+    name: SightMind Frontend Deploy
+    uses: ./.github/workflows/deploy-magic-frontend.yaml
+    with:
+      release_env: ${{ inputs.release_env }}
+      frontend_repo: ${{ needs.initial_setting.outputs.datahub_frontend_repo }}
+      target_branch: ${{ needs.initial_setting.outputs.target_branch }}
+      release_version: ${{ needs.initial_setting.outputs.release_version }}
+      target_version: ${{ needs.initial_setting.outputs.target_version }}
+    secrets: inherit  
