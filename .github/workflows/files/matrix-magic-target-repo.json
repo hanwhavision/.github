@@ -1,0 +1,8 @@
+{
+    "include": [
+      { "repo": "magic-common-backend" },
+      { "repo": "magic-toolbox-frontend" },
+      { "repo": "magic-cms-frontend" }
+    ]
+  }
+  
