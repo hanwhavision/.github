@@ -1,4 +1,4 @@
-name: Build npm and Deploy to S3 and invalidate CloudFront
+name: DataHub Frontend Build npm and Deploy to S3 and invalidate CloudFront
 run-name: ${{ inputs.frontend_repo}} - ${{ inputs.release_env }}
 
 permissions: 

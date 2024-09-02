@@ -1,4 +1,4 @@
-name: SightMind Backend Deploy
+name: Magic Backend Build npm and Deploy to S3 
 run-name: ${{ inputs.backend_repo}} - ${{ inputs.release_env }}
 
 permissions: 

@@ -116,7 +116,7 @@ jobs:
   magic-backend:
     if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting, parallel-create-release]
-    name: SightMind Backend Deploy
+    name: Magic Backend Deploy
     uses: ./.github/workflows/deploy-magic-backend.yaml
     with:
       release_env: ${{ inputs.release_env }}
@@ -129,7 +129,7 @@ jobs:
   toolbox-frontend:
     if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting, parallel-create-release]
-    name: SightMind Frontend Deploy
+    name: Toolbox Frontend Deploy
     uses: ./.github/workflows/deploy-magic-frontend.yaml
     with:
       release_env: ${{ inputs.release_env }}
@@ -142,7 +142,7 @@ jobs:
   datahub-frontend:
     if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting, parallel-create-release]
-    name: SightMind Frontend Deploy
+    name: DataHub Frontend Deploy
     uses: ./.github/workflows/deploy-magic-frontend.yaml
     with:
       release_env: ${{ inputs.release_env }}
