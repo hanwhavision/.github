@@ -74,7 +74,7 @@ jobs:
     if: ${{ inputs.frontend_repo == 'magic-toolbox-frontend' }}
     uses: ./.github/workflows/job_toolbox_frontend_build.yaml
     with:
-      working_dir: ./apps/toolbox
+      working_dir: ./
       release_env: ${{ inputs.release_env }}
       frontend_repo: ${{ inputs.frontend_repo }}
       target_branch: ${{ inputs.target_branch }}
