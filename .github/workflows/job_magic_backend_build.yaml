@@ -131,7 +131,7 @@ jobs:
           if [ "${{ inputs.target_branch }}" == "production" ]; then
             echo "production upload"
             if [ "${{ inputs.target_version }}" == "hotfix" ]; then
-              aws s3 cp s3://tbp-hotfix-cicd-d-an2/backend/deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors 
+              aws s3 cp s3://tbp-cicd-hotfix-d-an2/backend/deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors 
             else
               aws s3 cp s3://tbp020-cicd-q-ue1/api/deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors
             fi
