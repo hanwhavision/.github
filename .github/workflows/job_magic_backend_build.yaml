@@ -73,6 +73,7 @@ jobs:
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
     steps:
       - name: Checkout
+        if: inputs.target_branch != 'production'
         uses: actions/checkout@v4
         with:
           repository: hanwhavision/${{ inputs.backend_repo }}
@@ -86,9 +87,11 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Install specific npm version
+        if: inputs.target_branch != 'production'
         run: npm install -g npm
 
       - name: Verify npm version
+        if: inputs.target_branch != 'production'
         run: npm --version
 
       - name: Install dependencies
