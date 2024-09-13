@@ -14,7 +14,7 @@ on:
         description: 'Name of repository'
         required: true
         type: string
-        default: 'sightmind-backend-mono'
+        default: ''
       BUILD_PATH:
         description: 'Target Path under repository'
         required: true

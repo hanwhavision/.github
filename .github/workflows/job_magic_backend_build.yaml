@@ -1,4 +1,4 @@
-name: SightMind Backend Deploy
+name: Magic Backend Deploy
 run-name: ${{ inputs.backend_repo}} - ${{ inputs.release_env }}
 
 permissions: 
