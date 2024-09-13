@@ -96,7 +96,7 @@ jobs:
         if: inputs.DISPATCH == true
         uses: actions/checkout@v4
         with:
-          repository: cloud-development-team/${{ inputs.REPO_NAME }}
+          repository: hanwhavision/${{ inputs.REPO_NAME }}
           ref: refs/heads/${{ inputs.BRANCH }}
           path: ./${{ inputs.REPO_NAME }}
           token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
