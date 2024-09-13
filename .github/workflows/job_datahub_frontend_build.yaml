@@ -120,7 +120,7 @@ jobs:
           # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
           if [ "${{ inputs.target_branch }}" == "production" ]; then
             if [ "${{ inputs.target_version }}" == "hotfix" ]; then
-              # aws s3 sync s3://tbp-datahub-hotfix-d-an2/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+              aws s3 sync s3://tbp-datahub-hotfix-d-an2/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
             else
               aws s3 sync s3://tbp020-datahub-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
             fi
