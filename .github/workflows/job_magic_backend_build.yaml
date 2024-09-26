@@ -98,7 +98,8 @@ jobs:
         if: ${{ inputs.target_branch != 'production' }}
         working-directory: ${{ inputs.working_dir }}
         run: |
-          npm install
+          npm install --no-optional
+          npm install --cpu=arm64 --os=linux sharp
 
       - name: Build
         if: inputs.target_branch != 'production'
