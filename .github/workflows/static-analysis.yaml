@@ -67,7 +67,7 @@ jobs:
       ANALYSIS_PATH: ./${{ inputs.REPO_NAME }}/${{ inputs.BUILD_PATH }}
     
     container:
-        image: ghcr.io/hanwhavision/coverity-github:1.0.0
+        image: ghcr.io/hanwhavision/coverity-github:1.0.3
         options: --user root
         credentials:
           username: jenkins
@@ -148,6 +148,12 @@ jobs:
                   exit 1;
               fi
           done
+
+      - name: Coverity Report
+        if: inputs.QUALITY_REPORT == true
+        run: |
+          echo "CI_STEP_CoverityReport"
+          python3 /home/jenkins/coverity_utils/cov_auto_report.py Cloud non-compile ${{ inputs.REPO_NAME }}
 
       - name: Update deployment status (success)
         if: success()
