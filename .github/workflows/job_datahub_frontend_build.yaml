@@ -109,6 +109,7 @@ jobs:
           aws-region: ${{ needs.initial-tasks.outputs.region }}
 
       - name: Push build artifact to S3 Bucket and invalidation CloudFront
+        if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: |
           # Assume Role using an Automation Key
@@ -118,14 +119,25 @@ jobs:
           export AWS_SESSION_TOKEN=$(echo "$identity" | grep -o '"SessionToken": "[^"]*' | awk -F'"' '{print $4}')
           
           # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
-          if [ "${{ inputs.target_branch }}" == "production" ]; then
-            if [ "${{ inputs.target_version }}" == "hotfix" ]; then
-              aws s3 sync s3://tbp-datahub-hotfix-d-an2/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
-            else
-              aws s3 sync s3://tbp020-datahub-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
-            fi
+          aws s3 sync ./dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+
+          # Setting CloudFront
+          aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/*"
+
+      - name: Push build artifact to S3 Bucket and invalidation CloudFront
+        if: inputs.target_branch == 'production'
+        run: |
+          # Assume Role using an Automation Key
+          identity=$(aws sts assume-role --role-arn arn:aws:iam::${{ needs.initial-tasks.outputs.s3_account }}:role/AWSControlTowerExecution --role-session-name AWS)
+          export AWS_ACCESS_KEY_ID=$(echo "$identity" | grep -o '"AccessKeyId": "[^"]*' | awk -F'"' '{print $4}')
+          export AWS_SECRET_ACCESS_KEY=$(echo "$identity" | grep -o '"SecretAccessKey": "[^"]*' | awk -F'"' '{print $4}')
+          export AWS_SESSION_TOKEN=$(echo "$identity" | grep -o '"SessionToken": "[^"]*' | awk -F'"' '{print $4}')
+          
+          # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
+          if [ "${{ inputs.target_version }}" == "hotfix" ]; then
+            aws s3 sync s3://tbp-datahub-hotfix-d-an2/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
           else
-            aws s3 sync ./dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+            aws s3 sync s3://tbp020-datahub-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
           fi
 
           # Setting CloudFront
