@@ -43,32 +43,6 @@ on:
           type: string
 
 jobs:
-  # statitic-analysis-toolbox:
-  #   name: Analysis code quality
-  #   if: ${{ inputs.target_branch == 'release' && inputs.frontend_repo == 'magic-toolbox-frontend' }}
-  #   uses: ./.github/workflows/static-analysis.yaml
-  #   with:
-  #     REPO_NAME: ${{ inputs.frontend_repo }}
-  #     BUILD_PATH: apps/toolbox
-  #     QUALITY_REPORT: true
-  #     STREAM: magic-${{ inputs.frontend_repo }}}}
-  #     environment: main
-  #   secrets:
-  #     GH_MANAGEPACKAGE_TOKEN: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
-
-  # statitic-analysis-datahub:
-  #   name: Analysis code quality
-  #   if: ${{ inputs.target_branch == 'release' && inputs.frontend_repo == 'magic-cms-frontend' }}
-  #   uses: ./.github/workflows/static-analysis.yaml
-  #   with:
-  #     REPO_NAME: ${{ inputs.frontend_repo }}
-  #     BUILD_PATH: ./
-  #     QUALITY_REPORT: true
-  #     STREAM: magic-${{ inputs.frontend_repo }}}}
-  #     environment: main
-  #   secrets:
-  #     GH_MANAGEPACKAGE_TOKEN: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
-
   toolbox-build-and-release:
     name: ${{ inputs.frontend_repo}} ${{inputs.target_branch}} Build and release
     if: ${{ inputs.frontend_repo == 'magic-toolbox-frontend' }}

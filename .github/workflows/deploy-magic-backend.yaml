@@ -44,18 +44,6 @@ on:
 
 
 jobs:     
-  # static-analysis:
-  #   name: Analysis code quality
-  #   if: ${{ inputs.target_branch == 'release' }}
-  #   uses: ./.github/workflows/static-analysis.yaml
-  #   with:
-  #     REPO_NAME: magic-common-backend
-  #     BUILD_PATH: apps
-  #     QUALITY_REPORT: true
-  #     environment: main
-  #   secrets:
-  #     GH_MANAGEPACKAGE_TOKEN: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
-
   build-and-push-to-s3:
     name: ${{ inputs.backend_repo}} ${{inputs.target_branch}} Build and push artifact to s3
     uses: ./.github/workflows/job_magic_backend_build.yaml

@@ -82,29 +82,40 @@ jobs:
           ref: refs/heads/${{ inputs.target_branch}}
           token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
 
+      - name: Checkout
+        if: inputs.target_branch == 'production'
+        uses: actions/checkout@v4
+        with:
+          repository: hanwhavision/${{ inputs.frontend_repo }}
+          ref: refs/heads/release
+          token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
+
       - name: Setup Node.js
-        if: inputs.target_branch != 'production'
+        # if: inputs.target_branch != 'production'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: Setup pnpm
-        if: inputs.target_branch != 'production'
+        # if: inputs.target_branch != 'production'
         uses: pnpm/action-setup@v4
         with:
           version: 8.7.1
 
       - name: Install dependencies
-        if: inputs.target_branch != 'production'
+        # if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: pnpm install
 
       - name: Build
-        if: inputs.target_branch != 'production'
+        # if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: |
           if [ ${{ inputs.target_branch }}  == "release" ]; then
             echo "build qa environment"
+            CI=false pnpm toolbox build:qa
+          else
+            echo "build prod environment"
             CI=false pnpm toolbox build
           fi
 
@@ -135,6 +146,7 @@ jobs:
 
       - name: Push build artifact to S3 Bucket and invalidation CloudFront
         if: inputs.target_branch == 'production'
+        working-directory: ${{ inputs.working_dir }}
         run: |
           # Assume Role using an Automation Key
           identity=$(aws sts assume-role --role-arn arn:aws:iam::${{ needs.initial-tasks.outputs.s3_account }}:role/AWSControlTowerExecution --role-session-name AWS)
@@ -147,7 +159,8 @@ jobs:
           if [ "${{ inputs.target_version }}" == "hotfix" ]; then
             aws s3 sync s3://tbp-toolboxplus-hotfix-d-an2/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
           else
-            aws s3 sync s3://tbp020-toolboxplus-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+            # aws s3 sync s3://tbp020-toolboxplus-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+            aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
           fi
 
           # Setting CloudFront

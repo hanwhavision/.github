@@ -82,23 +82,36 @@ jobs:
           ref: refs/heads/${{ inputs.target_branch}}
           token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
 
+      - name: Checkout
+        if: inputs.target_branch == 'production'
+        uses: actions/checkout@v4
+        with:
+          repository: hanwhavision/${{ inputs.frontend_repo }}
+          ref: refs/heads/release
+          token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
+
       - name: Setup Node.js
-        if: inputs.target_branch != 'production'
+        # if: inputs.target_branch != 'production'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: Install dependencies
-        if: inputs.target_branch != 'production'
+        # if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: npm install
 
       - name: Build
-        if: inputs.target_branch != 'production'
+        # if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: |
-          echo "build qa environment"
-          CI=false npm run build:qa
+         if [ ${{ inputs.target_branch }}  == "release" ]; then
+            echo "build qa environment"
+            CI=false npm run build:qa
+          else
+            echo "build prod environment"
+            CI=false npm run build
+          fi
             
       # Login To HVC_Admin_Automation for Deploy
       - name: Configure AWS credentials
@@ -126,6 +139,7 @@ jobs:
 
       - name: Push build artifact to S3 Bucket and invalidation CloudFront
         if: inputs.target_branch == 'production'
+        working-directory: ${{ inputs.working_dir }}
         run: |
           # Assume Role using an Automation Key
           identity=$(aws sts assume-role --role-arn arn:aws:iam::${{ needs.initial-tasks.outputs.s3_account }}:role/AWSControlTowerExecution --role-session-name AWS)
@@ -137,7 +151,8 @@ jobs:
           if [ "${{ inputs.target_version }}" == "hotfix" ]; then
             aws s3 sync s3://tbp-datahub-hotfix-d-an2/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
           else
-            aws s3 sync s3://tbp020-datahub-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+            # aws s3 sync s3://tbp020-datahub-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+            aws s3 sync ./dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
           fi
 
           # Setting CloudFront
