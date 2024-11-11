@@ -112,19 +112,10 @@ jobs:
 
       - name: Get environment variables from s3
         run: |
-          # Define the bucket and prefixes
+          # Define the bucket
           bucket="${{ needs.init.outputs.env_bucket }}"
-          release_prefix="${{ inputs.release_version }}/"
-          latest_prefix="latest/"
-
-          # Check if the release version directory exists in the bucket
-          if aws s3 ls "s3://${bucket}/${release_prefix}" --recursive | grep -q '^[ ]*'; then
-              echo "Release version directory exists. Syncing from ${release_prefix}"
-              env_script="aws s3 sync s3://${bucket}/${release_prefix}/ /home/ubuntu/.toolbox2/"
-          else
-              echo "Release version directory not found. Falling back to latest version."
-              env_script="aws s3 sync s3://${bucket}/${latest_prefix}/ /home/ubuntu/.toolbox2/"
-          fi
+          
+          env_script="aws s3 sync s3://${bucket}/latest/ /home/ubuntu/.toolbox2/"
 
           sed -i "/^aws s3 sync/ s|.*|${env_script}|" ./codedeploy/deploy.sh
 
