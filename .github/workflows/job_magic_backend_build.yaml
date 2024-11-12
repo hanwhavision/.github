@@ -110,7 +110,7 @@ jobs:
           role-session-name: GitHub-Actions-Assume
           aws-region: ${{ needs.init.outputs.region }}
 
-      - name: Get environment variables from s3
+      - name: Modify deploy script to get and refine env file
         run: |
           # Define the bucket
           bucket="${{ needs.init.outputs.env_bucket }}"
@@ -118,6 +118,20 @@ jobs:
           env_script="aws s3 sync s3://${bucket}/latest/ /home/ubuntu/.toolbox2/"
 
           sed -i "/^aws s3 sync/ s|.*|${env_script}|" ./codedeploy/deploy.sh
+
+          # app version 
+          app_version="${{ inputs.release_version }}"
+          sed -i "/^APP_VERSION=/ s|.*|APP_VERSION=${app_version}|" ./codedeploy/deploy.sh
+
+          # env file name
+          if [ "${{ inputs.target_branch }}" == "production" ]; then
+            env_file="production.env"
+          else
+            env_file="qa.env"
+          fi
+
+          sed -i "/^ENV_FILE=/ s|.*|ENV_FILE=${env_file}|" ./codedeploy/deploy.sh
+
 
       - name: Build
         if: inputs.target_branch != 'production'
