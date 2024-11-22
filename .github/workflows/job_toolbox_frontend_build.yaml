@@ -53,6 +53,7 @@ jobs:
       region: ${{ steps.set_env.outputs.region }}
       s3_bucket: ${{ steps.set_env.outputs.s3_bucket }}
       s3_account: ${{ steps.set_env.outputs.s3_account }}
+      s3_environment: ${{ vars.S3_ENVIRONMENT_BUCKET }}
       cloudfront_distribution_id: ${{ vars.CF_DISTRIBUTION_ID }}
   
     steps:
@@ -107,6 +108,20 @@ jobs:
         working-directory: ${{ inputs.working_dir }}
         run: pnpm install
 
+     # Login To HVC_Admin_Automation for Deploy
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.GH_OIDC_ROLE }}
+          role-session-name: GitHub-Actions-Assume
+          aws-region: ${{ needs.initial-tasks.outputs.region }}
+
+      - name: Download environment file from S3
+        run: |
+          # Download .env file from S3 and place it in the correct directory
+
+          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_environment }}/frontend/${{ inputs.release_env }}/production.env ./apps/toolbox/envs/production.env
+        
       - name: Build
         # if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
@@ -118,14 +133,6 @@ jobs:
             echo "build prod environment"
             CI=false pnpm toolbox build
           fi
-
-     # Login To HVC_Admin_Automation for Deploy
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.GH_OIDC_ROLE }}
-          role-session-name: GitHub-Actions-Assume
-          aws-region: ${{ needs.initial-tasks.outputs.region }}
 
       - name: Push build artifact to S3 Bucket and invalidation CloudFront
         if: inputs.target_branch != 'production'
