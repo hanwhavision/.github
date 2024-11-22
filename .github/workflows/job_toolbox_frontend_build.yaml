@@ -52,6 +52,7 @@ jobs:
     outputs:
       region: ${{ steps.set_env.outputs.region }}
       s3_bucket: ${{ steps.set_env.outputs.s3_bucket }}
+      s3_rollback_bucket: ${{ vars.S3_ROLLBACK_BUCKET }}
       s3_account: ${{ steps.set_env.outputs.s3_account }}
       cloudfront_distribution_id: ${{ vars.CF_DISTRIBUTION_ID }}
   
@@ -119,6 +120,19 @@ jobs:
             CI=false pnpm toolbox build
           fi
 
+      - name: Zip build output
+        if: inputs.target_branch != 'production'
+        working-directory: ${{ inputs.working_dir }}
+        run: |
+          zip -qry $GITHUB_WORKSPACE/frontend.zip ./apps/toolbox/dist/
+
+          if [ -f "$GITHUB_WORKSPACE/frontend.zip" ]; then
+            echo "Zip file created successfully."
+          else
+            echo "Error: frontend.zip was not created."
+            exit 1
+          fi
+
      # Login To HVC_Admin_Automation for Deploy
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -140,8 +154,9 @@ jobs:
           
           # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
           aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+          aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
 
-          # Setting CloudFront
+          # CloudFront Invalidations
           aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/*"
 
       - name: Push build artifact to S3 Bucket and invalidation CloudFront
@@ -158,9 +173,19 @@ jobs:
           # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
           if [ "${{ inputs.target_version }}" == "hotfix" ]; then
             aws s3 sync s3://tbp-toolboxplus-hotfix-d-an2/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+
+            # store file to rollback bucket (CICD bucket)
+            aws s3 sync s3://tbp-toolboxplus-hotfix-d-an2/ ./rollback
+            zip -qry $GITHUB_WORKSPACE/frontend.zip ./rollback/
+            aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
           else
             # aws s3 sync s3://tbp020-toolboxplus-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
             aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+
+            # store file to rollback bucket (CICD bucket)
+            aws s3 sync s3://tbp020-toolboxplus-q-ue1/ ./rollback
+            zip -qry $GITHUB_WORKSPACE/frontend.zip ./rollback/
+            aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
           fi
 
           # Setting CloudFront
