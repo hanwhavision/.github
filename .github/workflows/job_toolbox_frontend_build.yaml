@@ -154,7 +154,7 @@ jobs:
           
           # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
           aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
-          aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+          aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/toolbox2/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
 
           # CloudFront Invalidations
           aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/*"
@@ -177,7 +177,7 @@ jobs:
             # store file to rollback bucket (CICD bucket)
             aws s3 sync s3://tbp-toolboxplus-hotfix-d-an2/ ./rollback
             zip -qry $GITHUB_WORKSPACE/frontend.zip ./rollback/
-            aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+            aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/toolbox2/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
           else
             # aws s3 sync s3://tbp020-toolboxplus-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
             aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
@@ -185,7 +185,7 @@ jobs:
             # store file to rollback bucket (CICD bucket)
             aws s3 sync s3://tbp020-toolboxplus-q-ue1/ ./rollback
             zip -qry $GITHUB_WORKSPACE/frontend.zip ./rollback/
-            aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+            aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/toolbox2/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
           fi
 
           # Setting CloudFront
