@@ -54,6 +54,7 @@ jobs:
       s3_bucket: ${{ steps.set_env.outputs.s3_bucket }}
       s3_rollback_bucket: ${{ vars.S3_ROLLBACK_BUCKET }}
       s3_account: ${{ steps.set_env.outputs.s3_account }}
+      s3_environment: ${{ vars.S3_ENVIRONMENT_BUCKET }}
       cloudfront_distribution_id: ${{ vars.CF_DISTRIBUTION_ID }}
   
     steps:
@@ -83,27 +84,19 @@ jobs:
           ref: refs/heads/${{ inputs.target_branch}}
           token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
 
-      - name: Checkout
-        if: inputs.target_branch == 'production'
-        uses: actions/checkout@v4
-        with:
-          repository: hanwhavision/${{ inputs.frontend_repo }}
-          ref: refs/heads/release
-          token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
-
       - name: Setup Node.js
-        # if: inputs.target_branch != 'production'
+        if: inputs.target_branch != 'production'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: Install dependencies
-        # if: inputs.target_branch != 'production'
+        if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: npm install
 
       - name: Build
-        # if: inputs.target_branch != 'production'
+        if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: |
          if [ ${{ inputs.target_branch }}  == "release" ]; then
@@ -134,6 +127,20 @@ jobs:
           role-to-assume: ${{ vars.GH_OIDC_ROLE }}
           role-session-name: GitHub-Actions-Assume
           aws-region: ${{ needs.initial-tasks.outputs.region }}
+
+      - name: Download environment file from S3
+        if: inputs.target_branch != 'production'
+        run: |
+          # Download .env file from S3 and place it in the correct directory
+
+          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_environment }}/frontend/latest/release.env ./release.env
+
+      - name: Build
+        if: inputs.target_branch != 'production'
+        working-directory: ${{ inputs.working_dir }}
+        run: |
+          echo "build qa environment"
+          CI=false npm run build
 
       - name: Push build artifact to S3 Bucket and invalidation CloudFront
         if: inputs.target_branch != 'production'
