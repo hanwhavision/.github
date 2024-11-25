@@ -160,12 +160,12 @@ jobs:
           if [ "${{ inputs.target_branch }}" == "production" ]; then
             echo "production upload"
             if [ "${{ inputs.target_version }}" == "hotfix" ]; then
-              aws s3 cp s3://tbp-cicd-hotfix-d-an2/api/deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors 
+              aws s3 cp s3://tbp-cicd-hotfix-d-an2/api/deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors --metadata version=${{ inputs.release_version }}
             else
-              aws s3 cp s3://tbp020-cicd-q-ue1/api/deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors
+              aws s3 cp s3://tbp020-cicd-q-ue1/api/deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors --metadata version=${{ inputs.release_version }}
             fi
           else
-            aws s3 cp ./deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors 
+            aws s3 cp ./deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors --metadata version=${{ inputs.release_version }}
           fi
           
           aws sts get-caller-identity
