@@ -136,7 +136,13 @@ jobs:
         if: inputs.target_branch == 'production'
         run: |
           # Fetch QA build artifact
-          aws s3 cp s3://tbp020-cicd-q-ue1/api/deploy.zip ./deploy.zip --only-show-errors
+          if [ "${{ inputs.target_version }}" == "hotfix" ]; then
+            target_bucket="s3://tbp-cicd-hotfix-d-an2/api/deploy.zip"
+          else
+            target_bucket="s3://tbp020-cicd-q-ue1/api/deploy.zip"
+          fi
+          
+          aws s3 cp ${target_bucket} ./deploy.zip --only-show-errors
           
           # Unzip the artifact
           unzip deploy.zip -d /tmp/deploy
