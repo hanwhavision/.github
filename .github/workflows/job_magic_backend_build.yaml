@@ -154,6 +154,11 @@ jobs:
           
           # Unzip the artifact
           unzip deploy.zip -d /tmp/deploy
+
+          # Update target environment bucket
+          bucket="${{ needs.init.outputs.env_bucket }}"
+          env_script="aws s3 sync s3://${bucket}/latest/ /home/ubuntu/.toolbox2/"
+          sed -i "/^aws s3 sync/ s|.*|${env_script}|" /tmp/deploy/codedeploy/deploy.sh
           
           # Modify deploy script
           app_version="${{ inputs.release_version }}"
