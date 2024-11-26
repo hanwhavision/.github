@@ -17,7 +17,7 @@ on:
         required: false
         description: "List of node version which want to scan"
         type: string
-        default: "['20.14.0']" #"['18.16']"
+        default: "['20.14.0']" # "['18.16']"
       release_env:
         description: 'Release Environment'
         required: true
@@ -29,7 +29,7 @@ on:
         default: ""
         type: string
       backend_repo:
-        description: 'backend Repo'
+        description: 'Backend Repo'
         required: true
         default: ""
         type: string
@@ -56,7 +56,7 @@ jobs:
       env_bucket: ${{ steps.set_env.outputs.env_bucket }}
 
     steps:
-      - name: set env
+      - name: Set Environment Variables
         id: set_env
         run: |
           echo "region=${{ vars.REGION }}" >> $GITHUB_OUTPUT
@@ -79,7 +79,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: hanwhavision/${{ inputs.backend_repo }}
-          ref: refs/heads/${{ inputs.target_branch}}
+          ref: refs/heads/${{ inputs.target_branch }}
           token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
 
       - name: Setup Node.js
@@ -97,7 +97,7 @@ jobs:
         run: npm --version
 
       - name: Install dependencies
-        if: ${{ inputs.target_branch != 'production' }}
+        if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: |
           npm install --no-optional
@@ -111,41 +111,51 @@ jobs:
           aws-region: ${{ needs.init.outputs.region }}
 
       - name: Modify deploy script to get and refine env file
+        if: inputs.target_branch != 'production'
         run: |
           # Define the bucket
           bucket="${{ needs.init.outputs.env_bucket }}"
-          
           env_script="aws s3 sync s3://${bucket}/latest/ /home/ubuntu/.toolbox2/"
-
           sed -i "/^aws s3 sync/ s|.*|${env_script}|" ./codedeploy/deploy.sh
-
-          # app version 
+          
+          # App version
           app_version="${{ inputs.release_version }}"
           sed -i "/^APP_VERSION=/ s|.*|APP_VERSION=${app_version}|" ./codedeploy/deploy.sh
 
-          # env file name
-          if [ "${{ inputs.target_branch }}" == "production" ]; then
-            env_file="production.env"
-          else
-            env_file="qa.env"
-          fi
-
+          # Env file name
+          env_file="qa.env"
           sed -i "/^ENV_FILE=/ s|.*|ENV_FILE=${env_file}|" ./codedeploy/deploy.sh
-
-
-      - name: Build
-        if: inputs.target_branch != 'production'
-        working-directory: ${{ inputs.working_dir }}
-        run: |
-          npm run build
-          echo "================"
-          ls -al src
 
       - name: Zip build output
         if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: |
           zip -qry deploy.zip .
+
+      - name: Prepare deploy artifact for production
+        if: inputs.target_branch == 'production'
+        run: |
+          # Fetch QA build artifact
+          if [ "${{ inputs.target_version }}" == "hotfix" ]; then
+            target_bucket="s3://tbp-cicd-hotfix-d-an2/api/deploy.zip"
+          else
+            target_bucket="s3://tbp020-cicd-q-ue1/api/deploy.zip"
+          fi
+          
+          aws s3 cp ${target_bucket} ./deploy.zip --only-show-errors
+          
+          # Unzip the artifact
+          unzip deploy.zip -d /tmp/deploy
+          
+          # Modify deploy script
+          app_version="${{ inputs.release_version }}"
+          sed -i "/^APP_VERSION=/ s|.*|APP_VERSION=${app_version}|" /tmp/deploy/codedeploy/deploy.sh
+          env_file="production.env"
+          sed -i "/^ENV_FILE=/ s|.*|ENV_FILE=${env_file}|" /tmp/deploy/codedeploy/deploy.sh
+          
+          # Recreate the deploy.zip with updated files
+          cd /tmp/deploy
+          zip -qry /home/ubuntu/deploy_modified.zip .
 
       - name: Push build artifact to S3 Bucket
         working-directory: ${{ inputs.working_dir }}
@@ -156,14 +166,10 @@ jobs:
           export AWS_SECRET_ACCESS_KEY=$(echo "$identity" | grep -o '"SecretAccessKey": "[^"]*' | awk -F'"' '{print $4}')
           export AWS_SESSION_TOKEN=$(echo "$identity" | grep -o '"SessionToken": "[^"]*' | awk -F'"' '{print $4}')
 
-          # Upload build artifact to S3 bucket and This command triggers the dev CodePipeline.
+          # Upload build artifact to S3 bucket
           if [ "${{ inputs.target_branch }}" == "production" ]; then
             echo "production upload"
-            if [ "${{ inputs.target_version }}" == "hotfix" ]; then
-              aws s3 cp s3://tbp-cicd-hotfix-d-an2/api/deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors --metadata version=${{ inputs.release_version }}
-            else
-              aws s3 cp s3://tbp020-cicd-q-ue1/api/deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors --metadata version=${{ inputs.release_version }}
-            fi
+            aws s3 cp /home/ubuntu/deploy_modified.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors --metadata version=${{ inputs.release_version }}
           else
             aws s3 cp ./deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors --metadata version=${{ inputs.release_version }}
           fi
