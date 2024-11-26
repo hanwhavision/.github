@@ -126,6 +126,14 @@ jobs:
           env_file="qa.env"
           sed -i "/^ENV_FILE=/ s|.*|ENV_FILE=${env_file}|" ./codedeploy/deploy.sh
 
+      - name: Build
+        if: inputs.target_branch != 'production'
+        working-directory: ${{ inputs.working_dir }}
+        run: |
+          npm run build
+          echo "================"
+          ls -al src
+
       - name: Zip build output
         if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
