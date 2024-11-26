@@ -168,7 +168,7 @@ jobs:
           
           # Recreate the deploy.zip with updated files
           cd /tmp/deploy
-          zip -qry /home/ubuntu/deploy_modified.zip .
+          zip -qry $GITHUB_WORKSPACE/deploy_modified.zip .
 
       - name: Push build artifact to S3 Bucket
         working-directory: ${{ inputs.working_dir }}
@@ -182,7 +182,7 @@ jobs:
           # Upload build artifact to S3 bucket
           if [ "${{ inputs.target_branch }}" == "production" ]; then
             echo "production upload"
-            aws s3 cp /home/ubuntu/deploy_modified.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors --metadata version=${{ inputs.release_version }}
+            aws s3 cp $GITHUB_WORKSPACE/deploy_modified.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors --metadata version=${{ inputs.release_version }}
           else
             aws s3 cp ./deploy.zip s3://${{ needs.init.outputs.s3_bucket }}/api/deploy.zip --only-show-errors --metadata version=${{ inputs.release_version }}
           fi
