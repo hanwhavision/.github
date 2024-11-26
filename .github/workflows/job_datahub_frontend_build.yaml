@@ -94,21 +94,8 @@ jobs:
         if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: npm install
-
-      - name: Zip build output
-        if: inputs.target_branch != 'production'
-        working-directory: ${{ inputs.working_dir }}
-        run: |
-          zip -qry $GITHUB_WORKSPACE/frontend.zip ./dist/
-
-          if [ -f "$GITHUB_WORKSPACE/frontend.zip" ]; then
-            echo "Zip file created successfully."
-          else
-            echo "Error: frontend.zip was not created."
-            exit 1
-          fi
-            
-      # Login To HVC_Admin_Automation for Deploy
+      
+        # Login To HVC_Admin_Automation for Deploy
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -129,6 +116,19 @@ jobs:
         run: |
           echo "build qa environment"
           CI=false npm run build
+
+      - name: Zip build output
+        if: inputs.target_branch != 'production'
+        working-directory: ${{ inputs.working_dir }}
+        run: |
+          zip -qry $GITHUB_WORKSPACE/frontend.zip ./dist/
+
+          if [ -f "$GITHUB_WORKSPACE/frontend.zip" ]; then
+            echo "Zip file created successfully."
+          else
+            echo "Error: frontend.zip was not created."
+            exit 1
+          fi
 
       - name: Push build artifact to S3 Bucket and invalidation CloudFront
         if: inputs.target_branch != 'production'
