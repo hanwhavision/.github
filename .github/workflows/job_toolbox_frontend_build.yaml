@@ -119,8 +119,8 @@ jobs:
           release_version=${{ inputs.release_version }}
           prod_version=$(echo "$release_version" | awk -F '-' '{print $1}')
 
-          sed -i "/^TOOLBOX_VERSION=/ s|.*|TOOLBOX_VERSION=${prod_version}|" ./release.env
-          sed -i "/^TOOLBOX_QA_VERSION=/ s|.*|TOOLBOX_QA_VERSION=${release_version}|" ./release.env
+          sed -i "/^TOOLBOX_VERSION=/ s|.*|TOOLBOX_VERSION=${prod_version}|" ./apps/toolbox/envs/release.env
+          sed -i "/^TOOLBOX_QA_VERSION=/ s|.*|TOOLBOX_QA_VERSION=${release_version}|" ./apps/toolbox/envs/release.env
 
       - name: Build
         if: inputs.target_branch != 'production'
