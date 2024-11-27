@@ -101,6 +101,21 @@ jobs:
         working-directory: ${{ inputs.working_dir }}
         run: pnpm install
 
+      # Login To HVC_Admin_Automation for Deploy
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.GH_OIDC_ROLE }}
+          role-session-name: GitHub-Actions-Assume
+          aws-region: ${{ needs.initial-tasks.outputs.region }}
+
+      - name: Download environment file from S3
+        if: inputs.target_branch != 'production'
+        run: |
+          # Download .env file from S3 and place it in the correct directory
+
+          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_environment }}/frontend/latest/release.env ./apps/toolbox/envs/release.env
+
       - name: Build
         if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
@@ -120,28 +135,6 @@ jobs:
             echo "Error: frontend.zip was not created."
             exit 1
           fi
-
-     # Login To HVC_Admin_Automation for Deploy
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.GH_OIDC_ROLE }}
-          role-session-name: GitHub-Actions-Assume
-          aws-region: ${{ needs.initial-tasks.outputs.region }}
-
-      - name: Download environment file from S3
-        if: inputs.target_branch != 'production'
-        run: |
-          # Download .env file from S3 and place it in the correct directory
-
-          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_environment }}/frontend/latest/release.env ./apps/toolbox/envs/release.env
-        
-      - name: Build
-        if: inputs.target_branch != 'production'
-        working-directory: ${{ inputs.working_dir }}
-        run: |
-          echo "build qa environment"
-          CI=false pnpm toolbox build
 
       - name: Push build artifact to S3 Bucket and invalidation CloudFront
         if: inputs.target_branch != 'production'
