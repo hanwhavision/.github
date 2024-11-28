@@ -111,7 +111,7 @@ jobs:
           aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_environment }}/frontend/latest/release.env ./release.env
 
           release_version=${{ inputs.release_version }}
-          prod_version=$(echo "$release_version" | awk -F '-' '{print $1}')
+          prod_version=$(echo "$release_version" | awk -F '+' '{print $1}')
 
           sed -i "/^VITE_APP_VERSION=/ s|.*|VITE_APP_VERSION=${prod_version}|" ./release.env
           sed -i "/^VITE_APP_QA_VERSION=/ s|.*|VITE_APP_QA_VERSION=${release_version}|" ./release.env
