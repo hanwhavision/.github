@@ -127,7 +127,8 @@ jobs:
         if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: |
-          zip -qry $GITHUB_WORKSPACE/frontend.zip ./dist/
+          cd ./dist/
+          zip -qry $GITHUB_WORKSPACE/frontend.zip ./
 
           if [ -f "$GITHUB_WORKSPACE/frontend.zip" ]; then
             echo "Zip file created successfully."
@@ -169,14 +170,16 @@ jobs:
 
             # store file to rollback bucket (CICD bucket)
             aws s3 sync s3://tbp-datahub-hotfix-d-an2/ ./rollback
-            zip -qry $GITHUB_WORKSPACE/frontend.zip ./rollback/
+            cd ./rollback
+            zip -qry $GITHUB_WORKSPACE/frontend.zip ./
             aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/datahub/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
           else
             aws s3 sync s3://tbp020-datahub-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
 
             # store file to rollback bucket (CICD bucket)
             aws s3 sync s3://tbp020-datahub-q-ue1/ ./rollback
-            zip -qry $GITHUB_WORKSPACE/frontend.zip ./rollback/
+            cd ./rollback
+            zip -qry $GITHUB_WORKSPACE/frontend.zip ./
             aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/datahub/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
           fi
 
