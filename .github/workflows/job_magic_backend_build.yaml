@@ -90,7 +90,7 @@ jobs:
 
       - name: Install specific npm version
         if: inputs.target_branch != 'production'
-        run: npm install -g npm
+        run: npm install -g npm@10.2.4
 
       - name: Verify npm version
         if: inputs.target_branch != 'production'
