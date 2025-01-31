@@ -44,9 +44,21 @@ on:
 
 
 jobs:     
-  build-and-push-to-s3:
+  build-backend-and-push-to-s3:
     name: ${{ inputs.backend_repo}} ${{inputs.target_branch}} Build and push artifact to s3
     uses: ./.github/workflows/job_magic_backend_build.yaml
+    with:
+      working_dir: ./
+      release_env: ${{ inputs.release_env }}
+      backend_repo: ${{ inputs.backend_repo }}
+      target_branch: ${{ inputs.target_branch }}
+      release_version: ${{ inputs.release_version }}
+      target_version: ${{ inputs.target_version }}
+    secrets: inherit
+
+  build-external-backend-and-push-to-s3:
+    name: ${{ inputs.backend_repo}} ${{inputs.target_branch}} Build and push artifact to s3
+    uses: ./.github/workflows/job_magic_external_backend_build.yaml
     with:
       working_dir: ./
       release_env: ${{ inputs.release_env }}
