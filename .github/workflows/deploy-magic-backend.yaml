@@ -46,6 +46,7 @@ on:
 jobs:     
   build-backend-and-push-to-s3:
     name: ${{ inputs.backend_repo}} ${{inputs.target_branch}} Build and push artifact to s3
+    if: ${{ inputs.backend_repo == 'magic-common-backend' }}
     uses: ./.github/workflows/job_magic_backend_build.yaml
     with:
       working_dir: ./
@@ -58,6 +59,7 @@ jobs:
 
   build-external-backend-and-push-to-s3:
     name: ${{ inputs.backend_repo}} ${{inputs.target_branch}} Build and push artifact to s3
+    if: ${{ inputs.backend_repo == 'datahub-external-api' }}
     uses: ./.github/workflows/job_magic_external_backend_build.yaml
     with:
       working_dir: ./

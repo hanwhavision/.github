@@ -35,6 +35,7 @@ jobs:
       release_version: ${{ steps.set_env.outputs.release_version }}
       target_branch: ${{ steps.set_env.outputs.target_branch }}
       target_version: ${{ steps.set_env.outputs.target_version }}
+      is_external: ${{ steps.set_env.outputs.is_external }}
       matrix: ${{ steps.set_env.outputs.matrix }}
     
     steps:
@@ -69,10 +70,18 @@ jobs:
             target_branch=null
           fi
           
+          if grep -q "external" <<< "${{ inputs.release_env }}"; then
+            is_external=true
+          else
+            is_external=false
+          fi
+
+          
           echo "target_branch=$target_branch" >> $GITHUB_OUTPUT
           echo "target_version=$target_version" >> $GITHUB_OUTPUT
           echo "release_env=${{ inputs.release_env }}" >> $GITHUB_OUTPUT
           echo "release_version=${{ inputs.release_version }}" >> $GITHUB_OUTPUT
+          echo "is_external=$is_external" >> $GITHUB_OUTPUT
 
       - name: Fail if environment is unknown
         if: ${{ steps.set_env.outputs.release_env == null }}
@@ -117,7 +126,7 @@ jobs:
           echo "🔗 Github Release Link : https://github.com/hanwhavision/${{ matrix.repo }}/releases/tag/${{ inputs.release_version }}" 
 
   magic-backend:
-    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ needs.initial_setting.outputs.is_external == false && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting, parallel-create-release]
     name: Magic Backend Deploy
     uses: ./.github/workflows/deploy-magic-backend.yaml
@@ -130,7 +139,7 @@ jobs:
     secrets: inherit  
   
   external-backend:
-      if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+      if: ${{ needs.initial_setting.outputs.is_external == true && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
       needs: [initial_setting, parallel-create-release]
       name: Magic external Backend Deploy
       uses: ./.github/workflows/deploy-magic-backend.yaml
@@ -143,7 +152,7 @@ jobs:
       secrets: inherit  
 
   toolbox-frontend:
-    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ needs.initial_setting.outputs.is_external == false && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting, parallel-create-release]
     name: Toolbox Frontend Deploy
     uses: ./.github/workflows/deploy-magic-frontend.yaml
@@ -156,7 +165,7 @@ jobs:
     secrets: inherit  
 
   datahub-frontend:
-    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ needs.initial_setting.outputs.is_external == false && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting, parallel-create-release]
     name: Datahub Frontend Deploy
     uses: ./.github/workflows/deploy-magic-frontend.yaml
