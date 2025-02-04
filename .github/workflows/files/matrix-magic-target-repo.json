@@ -1,7 +1,6 @@
 {
     "include": [
       { "repo": "magic-common-backend" },
-      { "repo": "datahub-external-api"},
       { "repo": "magic-toolbox-frontend" },
       { "repo": "magic-cms-frontend" }
     ]
