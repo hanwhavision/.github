@@ -156,7 +156,6 @@ jobs:
 
       - name: Push build artifact to S3 Bucket and invalidation CloudFront
         if: inputs.target_branch == 'production'
-        working-directory: ${{ inputs.working_dir }}
         run: |
           # Assume Role using an Automation Key
           identity=$(aws sts assume-role --role-arn arn:aws:iam::${{ needs.initial-tasks.outputs.s3_account }}:role/AWSControlTowerExecution --role-session-name AWS)
