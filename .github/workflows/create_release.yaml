@@ -90,7 +90,7 @@ jobs:
           exit 1
 
   magic-backend:
-    if: ${{ needs.initial_setting.outputs.is_external == false && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ needs.initial_setting.outputs.is_external == 'false' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting]
     name: Magic Backend Deploy
     uses: ./.github/workflows/deploy-magic-backend.yaml
@@ -103,7 +103,7 @@ jobs:
     secrets: inherit  
   
   external-backend:
-      if: ${{ needs.initial_setting.outputs.is_external == true && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+      if: ${{ needs.initial_setting.outputs.is_external == 'true' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
       needs: [initial_setting]
       name: Magic external Backend Deploy
       uses: ./.github/workflows/deploy-magic-backend.yaml
@@ -116,7 +116,7 @@ jobs:
       secrets: inherit  
 
   toolbox-frontend:
-    if: ${{ needs.initial_setting.outputs.is_external == false && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ needs.initial_setting.outputs.is_external == 'false' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting]
     name: Toolbox Frontend Deploy
     uses: ./.github/workflows/deploy-magic-frontend.yaml
@@ -129,7 +129,7 @@ jobs:
     secrets: inherit  
 
   datahub-frontend:
-    if: ${{ needs.initial_setting.outputs.is_external == false && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ needs.initial_setting.outputs.is_external == 'false' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting]
     name: Datahub Frontend Deploy
     uses: ./.github/workflows/deploy-magic-frontend.yaml
@@ -144,7 +144,7 @@ jobs:
 
   parallel-create-release:
     name: parallel create release
-    if: ${{ needs.initial_setting.outputs.is_external == false && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ needs.initial_setting.outputs.is_external == 'false' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting, magic-backend, toolbox-frontend, datahub-frontend ]
     runs-on: ubuntu-latest
     strategy:
@@ -180,7 +180,7 @@ jobs:
 
   parallel-create-release-external:
     name: parallel create release for external api
-    if: ${{ needs.initial_setting.outputs.is_external == true && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ needs.initial_setting.outputs.is_external == 'true' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting, external-backend ]
     runs-on: ubuntu-latest
         
