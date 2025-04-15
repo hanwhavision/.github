@@ -47,16 +47,18 @@ jobs:
         run: |
           if [ "${{ inputs.jira_key }}" == "MAG" ]; then
             backend_repo=magic-common-backend
-            external_repo=datahub-external-api
             toolbox_frontend_repo=magic-toolbox-frontend
             datahub_frontend_repo=magic-cms-frontend
             matrix=$(jq -c '.' .github/workflows/files/matrix-magic-target-repo.json)
 
             echo "backend_repo=$backend_repo" >> $GITHUB_OUTPUT
-            echo "external_repo=$external_repo" >> $GITHUB_OUTPUT
             echo "toolbox_frontend_repo=$toolbox_frontend_repo" >> $GITHUB_OUTPUT
             echo "datahub_frontend_repo=$datahub_frontend_repo" >> $GITHUB_OUTPUT
             echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          elif [ "${{ inputs.jira_key }}" == "DHE" ]; then
+            external_repo=datahub-external-api
+
+            echo "external_repo=$external_repo" >> $GITHUB_OUTPUT
           fi
 
           if grep -q "QA" <<< "${{ inputs.release_env }}"; then
@@ -70,18 +72,10 @@ jobs:
             target_branch=null
           fi
           
-          if grep -q "external" <<< "${{ inputs.release_env }}"; then
-            is_external=true
-          else
-            is_external=false
-          fi
-
-          
           echo "target_branch=$target_branch" >> $GITHUB_OUTPUT
           echo "target_version=$target_version" >> $GITHUB_OUTPUT
           echo "release_env=${{ inputs.release_env }}" >> $GITHUB_OUTPUT
           echo "release_version=${{ inputs.release_version }}" >> $GITHUB_OUTPUT
-          echo "is_external=$is_external" >> $GITHUB_OUTPUT
 
       - name: Fail if environment is unknown
         if: ${{ steps.set_env.outputs.release_env == null }}
@@ -90,7 +84,7 @@ jobs:
           exit 1
 
   magic-backend:
-    if: ${{ needs.initial_setting.outputs.is_external == 'false' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting]
     name: Magic Backend Deploy
     uses: ./.github/workflows/deploy-magic-backend.yaml
@@ -101,22 +95,9 @@ jobs:
       release_version: ${{ needs.initial_setting.outputs.release_version }}
       target_version: ${{ needs.initial_setting.outputs.target_version }}
     secrets: inherit  
-  
-  external-backend:
-      if: ${{ needs.initial_setting.outputs.is_external == 'true' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
-      needs: [initial_setting]
-      name: Magic external Backend Deploy
-      uses: ./.github/workflows/deploy-magic-backend.yaml
-      with:
-        release_env: ${{ inputs.release_env }}
-        backend_repo: ${{ needs.initial_setting.outputs.external_repo }}
-        target_branch: ${{ needs.initial_setting.outputs.target_branch }}
-        release_version: ${{ needs.initial_setting.outputs.release_version }}
-        target_version: ${{ needs.initial_setting.outputs.target_version }}
-      secrets: inherit  
 
   toolbox-frontend:
-    if: ${{ needs.initial_setting.outputs.is_external == 'false' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting]
     name: Toolbox Frontend Deploy
     uses: ./.github/workflows/deploy-magic-frontend.yaml
@@ -129,7 +110,7 @@ jobs:
     secrets: inherit  
 
   datahub-frontend:
-    if: ${{ needs.initial_setting.outputs.is_external == 'false' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting]
     name: Datahub Frontend Deploy
     uses: ./.github/workflows/deploy-magic-frontend.yaml
@@ -142,9 +123,23 @@ jobs:
     secrets: inherit  
 
 
+  external-backend:
+      if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'DHE' }} 
+      needs: [initial_setting]
+      name: Magic external Backend Deploy
+      uses: ./.github/workflows/deploy-magic-backend.yaml
+      with:
+        release_env: ${{ inputs.release_env }}
+        backend_repo: ${{ needs.initial_setting.outputs.external_repo }}
+        target_branch: ${{ needs.initial_setting.outputs.target_branch }}
+        release_version: ${{ needs.initial_setting.outputs.release_version }}
+        target_version: ${{ needs.initial_setting.outputs.target_version }}
+      secrets: inherit  
+
+
   parallel-create-release:
     name: parallel create release
-    if: ${{ needs.initial_setting.outputs.is_external == 'false' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting, magic-backend, toolbox-frontend, datahub-frontend ]
     runs-on: ubuntu-latest
     strategy:
@@ -180,7 +175,7 @@ jobs:
 
   parallel-create-release-external:
     name: parallel create release for external api
-    if: ${{ needs.initial_setting.outputs.is_external == 'true' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'DHE' }} 
     needs: [initial_setting, external-backend ]
     runs-on: ubuntu-latest
         
