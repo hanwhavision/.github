@@ -139,7 +139,7 @@ jobs:
 
   parallel-create-release:
     name: parallel create release
-    if: ${{ needs.initial_setting.outputs.is_external == 'false' && github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'MAG' }} 
     needs: [initial_setting, magic-backend, toolbox-frontend, datahub-frontend ]
     runs-on: ubuntu-latest
     strategy:
@@ -175,7 +175,7 @@ jobs:
 
   parallel-create-release-external:
     name: parallel create release for external api
-    if: ${{ needs.initial_setting.outputs.is_external == 'true' && github.actor == 'jenkins-se' && inputs.jira_key == 'DHE' }} 
+    if: ${{ github.actor == 'jenkins-se' && inputs.jira_key == 'DHE' }} 
     needs: [initial_setting, external-backend ]
     runs-on: ubuntu-latest
         
