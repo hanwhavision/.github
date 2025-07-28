@@ -148,11 +148,29 @@ jobs:
           export AWS_SESSION_TOKEN=$(echo "$identity" | grep -o '"SessionToken": "[^"]*' | awk -F'"' '{print $4}')
           
           # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
-          aws s3 sync ./dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+          # Hashed 파일 (immutable 적용)
+          aws s3 sync ./dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} \
+            --no-progress --delete \
+            --exclude "*" \
+            --include "assets/*" \
+            --cache-control max-age=31536000,s-maxage=31536000,immutable \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          # index.html 등은 최신으로 유지
+          aws s3 sync ./dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} \
+            --no-progress \
+            --exact-timestamps \
+            --exclude "*" \
+            --include "index.html" \
+            --include "robots.txt" \
+            --include "favicon.ico" \
+            --cache-control max-age=0,s-maxage=31536000 \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
           aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/datahub/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
 
           # CloudFront Invalidations
-          aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/*"
+          aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/index.html" "/robots.txt" "/favicon.ico"
 
       - name: Push build artifact to S3 Bucket and invalidation CloudFront
         if: inputs.target_branch == 'production'
