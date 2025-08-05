@@ -210,4 +210,71 @@ jobs:
 
           # Setting CloudFront
           aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/*"
-  
+
+  notify-success:
+    if: ${{ success() }}
+    needs: [pnpm-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send success message to Teams
+        run: |
+          curl -H "Content-Type: application/json" -X POST -d '{
+            "type": "message",
+            "attachments": [
+              {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                  "type": "AdaptiveCard",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "text": "✅ DesignPro ${{ inputs.target_branch }} Frontend Deployment Success",
+                      "weight": "Bolder",
+                      "color": "Good"
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": "브랜치: ${{ github.ref }}\n커밋: ${{ github.sha }}\n배포자: ${{ github.actor }}\n[워크플로 보기](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                      "wrap": true
+                    }
+                  ],
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "version": "1.0"
+                }
+              }
+            ]
+          }' --fail --silent --show-error ${{ secrets.DESIGNPRO_TEAMS_WEBHOOK_URL }}
+
+  notify-failure:
+    if: ${{ failure() }}
+    needs: [pnpm-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure message to Teams
+        run: |
+          curl -H "Content-Type: application/json" -X POST -d '{
+            "type": "message",
+            "attachments": [
+              {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                  "type": "AdaptiveCard",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "text": "🚨 DesignPro ${{ inputs.target_branch }} Frontend Deployment failed",
+                      "weight": "Bolder",
+                      "color": "Attention"
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": "브랜치: ${{ github.ref }}\n커밋: ${{ github.sha }}\n배포자: ${{ github.actor }}\n[워크플로 보기](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                      "wrap": true
+                    }
+                  ],
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "version": "1.0"
+                }
+              }
+            ]
+          }' --fail --silent --show-error ${{ secrets.DESIGNPRO_TEAMS_WEBHOOK_URL }}
