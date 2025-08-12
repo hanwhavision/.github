@@ -172,36 +172,92 @@ jobs:
           # CloudFront Invalidations
           aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/index.html" "/robots.txt" "/favicon.ico"
 
-      - name: Push build artifact to S3 Bucket and invalidation CloudFront
+      - name: Promote from QA/hotfix to PROD bucket & unify Cache-Control & Invalidate CF
         if: inputs.target_branch == 'production'
         run: |
-          # Assume Role using an Automation Key
+          set -euo pipefail
+          
+          # Cross-account assume role for target S3
           identity=$(aws sts assume-role --role-arn arn:aws:iam::${{ needs.initial-tasks.outputs.s3_account }}:role/AWSControlTowerExecution --role-session-name AWS)
           export AWS_ACCESS_KEY_ID=$(echo "$identity" | grep -o '"AccessKeyId": "[^"]*' | awk -F'"' '{print $4}')
           export AWS_SECRET_ACCESS_KEY=$(echo "$identity" | grep -o '"SecretAccessKey": "[^"]*' | awk -F'"' '{print $4}')
           export AWS_SESSION_TOKEN=$(echo "$identity" | grep -o '"SessionToken": "[^"]*' | awk -F'"' '{print $4}')
-          
-          # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
+
+          SRC_BUCKET=""
           if [ "${{ inputs.target_version }}" == "hotfix" ]; then
-            aws s3 sync s3://tbp-datahub-hotfix-d-an2/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
-
-            # store file to rollback bucket (CICD bucket)
-            aws s3 sync s3://tbp-datahub-hotfix-d-an2/ ./rollback
-            cd ./rollback
-            zip -qry $GITHUB_WORKSPACE/frontend.zip ./
-            aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/datahub/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+            SRC_BUCKET="tbp-datahub-hotfix-d-an2"
           else
-            aws s3 sync s3://tbp020-datahub-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
-
-            # store file to rollback bucket (CICD bucket)
-            aws s3 sync s3://tbp020-datahub-q-ue1/ ./rollback
-            cd ./rollback
-            zip -qry $GITHUB_WORKSPACE/frontend.zip ./
-            aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/datahub/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+            SRC_BUCKET="tbp020-datahub-q-ue1"
           fi
+          [ -n "$SRC_BUCKET" ] || { echo "SRC_BUCKET not set"; exit 1; }
 
-          # Setting CloudFront
-          aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/*"
+          # 1) sync from source bucket to prod bucket (metadata is copied as-is)
+          aws s3 sync s3://$SRC_BUCKET/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+
+          # 2) rollback artifact
+          mkdir -p ./rollback
+          aws s3 sync s3://$SRC_BUCKET/ ./rollback
+          (cd ./rollback && zip -qry $GITHUB_WORKSPACE/frontend.zip ./)
+          aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/datahub/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+
+          # 3) Ensure root files have uniform Cache-Control in PROD as well
+          #    NOTE: metadata-directive REPLACE requires explicit content-type.
+          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/index.html s3://${{ needs.initial-tasks.outputs.s3_bucket }}/index.html \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=0,s-maxage=31536000" \
+            --content-type "text/html" \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/robots.txt s3://${{ needs.initial-tasks.outputs.s3_bucket }}/robots.txt \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=0,s-maxage=31536000" \
+            --content-type "text/plain" \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/favicon.ico s3://${{ needs.initial-tasks.outputs.s3_bucket }}/favicon.ico \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=0,s-maxage=31536000" \
+            --content-type "image/x-icon" \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          # (선택) assets/* 헤더가 필요하면 QA 쪽이 이미 immutable로 올라오므로 보통 추가 작업 불필요.
+          # 필요 시, 확장자별 content-type 보존 로직을 별도 스크립트로 도입 권장.
+
+          # 4) CloudFront invalidation (minimal)
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} \
+            --paths "/index.html" "/robots.txt" "/favicon.ico"
+
+      # - name: Push build artifact to S3 Bucket and invalidation CloudFront
+      #   if: inputs.target_branch == 'production'
+      #   run: |
+      #     # Assume Role using an Automation Key
+      #     identity=$(aws sts assume-role --role-arn arn:aws:iam::${{ needs.initial-tasks.outputs.s3_account }}:role/AWSControlTowerExecution --role-session-name AWS)
+      #     export AWS_ACCESS_KEY_ID=$(echo "$identity" | grep -o '"AccessKeyId": "[^"]*' | awk -F'"' '{print $4}')
+      #     export AWS_SECRET_ACCESS_KEY=$(echo "$identity" | grep -o '"SecretAccessKey": "[^"]*' | awk -F'"' '{print $4}')
+      #     export AWS_SESSION_TOKEN=$(echo "$identity" | grep -o '"SessionToken": "[^"]*' | awk -F'"' '{print $4}')
+          
+      #     # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
+      #     if [ "${{ inputs.target_version }}" == "hotfix" ]; then
+      #       aws s3 sync s3://tbp-datahub-hotfix-d-an2/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+
+      #       # store file to rollback bucket (CICD bucket)
+      #       aws s3 sync s3://tbp-datahub-hotfix-d-an2/ ./rollback
+      #       cd ./rollback
+      #       zip -qry $GITHUB_WORKSPACE/frontend.zip ./
+      #       aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/datahub/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+      #     else
+      #       aws s3 sync s3://tbp020-datahub-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
+
+      #       # store file to rollback bucket (CICD bucket)
+      #       aws s3 sync s3://tbp020-datahub-q-ue1/ ./rollback
+      #       cd ./rollback
+      #       zip -qry $GITHUB_WORKSPACE/frontend.zip ./
+      #       aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/datahub/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+      #     fi
+
+      #     # Setting CloudFront
+      #     aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/*"
 
   notify-success:
     if: ${{ success() }}
