@@ -73,8 +73,6 @@ jobs:
     strategy:
       matrix:
         node-version: ${{ fromJSON(inputs.node_versions) }}
-        # node-version: [14.x, 16.x, 18.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
     steps:
       - name: Checkout
         if: inputs.target_branch != 'production'
@@ -99,7 +97,9 @@ jobs:
       - name: Install dependencies
         if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
-        run: pnpm install
+        run: |
+          set -euo pipefail
+          pnpm install
 
       # Login To HVC_Admin_Automation for Deploy
       - name: Configure AWS credentials
@@ -112,9 +112,10 @@ jobs:
       - name: Download environment file from S3
         if: inputs.target_branch != 'production'
         run: |
+          set -euo pipefail
           # Download .env file from S3 and place it in the correct directory
-
-          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_environment }}/frontend/latest/release.env ./apps/toolbox/envs/release.env
+          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_environment }}/frontend/latest/release.env ./apps/toolbox/envs/release.env \
+            --only-show-errors
 
           release_version=${{ inputs.release_version }}
           prod_version=$(echo "$release_version" | awk -F '-' '{print $1}')
@@ -126,6 +127,7 @@ jobs:
         if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: |
+          set -euo pipefail
           echo "build prod environment"
           CI=false pnpm toolbox build
 
@@ -133,9 +135,9 @@ jobs:
         if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: |
+          set -euo pipefail
           cd ./apps/toolbox/dist/
           zip -qry $GITHUB_WORKSPACE/frontend.zip ./
-
           if [ -f "$GITHUB_WORKSPACE/frontend.zip" ]; then
             echo "Zip file created successfully."
           else
@@ -143,28 +145,29 @@ jobs:
             exit 1
           fi
 
-      - name: Push build artifact to S3 Bucket and invalidation CloudFront
+      - name: Push build artifact to S3 Bucket and invalidate CloudFront (non-prod)
         if: inputs.target_branch != 'production'
         working-directory: ${{ inputs.working_dir }}
         run: |
+          set -euo pipefail
+
           # Assume Role using an Automation Key
           identity=$(aws sts assume-role --role-arn arn:aws:iam::${{ needs.initial-tasks.outputs.s3_account }}:role/AWSControlTowerExecution --role-session-name AWS)
           export AWS_ACCESS_KEY_ID=$(echo "$identity" | grep -o '"AccessKeyId": "[^"]*' | awk -F'"' '{print $4}')
           export AWS_SECRET_ACCESS_KEY=$(echo "$identity" | grep -o '"SecretAccessKey": "[^"]*' | awk -F'"' '{print $4}')
           export AWS_SESSION_TOKEN=$(echo "$identity" | grep -o '"SessionToken": "[^"]*' | awk -F'"' '{print $4}')
 
-          
-          # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
+          # immutable assets
           aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} \
-            --no-progress --delete \
+            --no-progress --only-show-errors --delete \
             --exclude "*" \
             --include "assets/*" \
             --cache-control max-age=31536000,s-maxage=31536000,immutable \
             --region ${{ needs.initial-tasks.outputs.region }}
           
-          # index.html 등은 최신으로 유지
+          # root files (fresh)
           aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} \
-            --no-progress \
+            --no-progress --only-show-errors \
             --exact-timestamps \
             --exclude "*" \
             --include "index.html" \
@@ -173,43 +176,77 @@ jobs:
             --cache-control max-age=0,s-maxage=31536000 \
             --region ${{ needs.initial-tasks.outputs.region }}
 
-          aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/toolbox2/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+          # rollback artifact
+          aws s3 cp $GITHUB_WORKSPACE/frontend.zip \
+            s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/toolbox2/${{ inputs.release_version }}/frontend.zip \
+            --only-show-errors \
+            --region ${{ needs.initial-tasks.outputs.region }}
 
-          # CloudFront Invalidations
-          aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/index.html" "/robots.txt" "/favicon.ico"
+          # CloudFront minimal invalidation
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} \
+            --paths "/index.html" "/robots.txt" "/favicon.ico"
 
-      - name: Push build artifact to S3 Bucket and invalidation CloudFront
+      - name: Promote from QA/hotfix to PROD bucket & unify Cache-Control & Invalidate CF
         if: inputs.target_branch == 'production'
-        working-directory: ${{ inputs.working_dir }}
         run: |
-          # Assume Role using an Automation Key
+          set -euo pipefail
+          
+          # Cross-account assume role for target S3
           identity=$(aws sts assume-role --role-arn arn:aws:iam::${{ needs.initial-tasks.outputs.s3_account }}:role/AWSControlTowerExecution --role-session-name AWS)
           export AWS_ACCESS_KEY_ID=$(echo "$identity" | grep -o '"AccessKeyId": "[^"]*' | awk -F'"' '{print $4}')
           export AWS_SECRET_ACCESS_KEY=$(echo "$identity" | grep -o '"SecretAccessKey": "[^"]*' | awk -F'"' '{print $4}')
           export AWS_SESSION_TOKEN=$(echo "$identity" | grep -o '"SessionToken": "[^"]*' | awk -F'"' '{print $4}')
 
-          
-          # Upload build artifact to S3 bucket and This command triggers the CodePipeline.
+          SRC_BUCKET=""
           if [ "${{ inputs.target_version }}" == "hotfix" ]; then
-            aws s3 sync s3://tbp-toolboxplus-hotfix-d-an2/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
-
-            # store file to rollback bucket (CICD bucket)
-            aws s3 sync s3://tbp-toolboxplus-hotfix-d-an2/ ./rollback
-            cd ./rollback
-            zip -qry $GITHUB_WORKSPACE/frontend.zip ./
-            aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/toolbox2/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+            SRC_BUCKET="tbp-toolboxplus-hotfix-d-an2"
           else
-            aws s3 sync s3://tbp020-toolboxplus-q-ue1/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} --delete --region ${{ needs.initial-tasks.outputs.region }}
-
-            # store file to rollback bucket (CICD bucket)
-            aws s3 sync s3://tbp020-toolboxplus-q-ue1/ ./rollback
-            cd ./rollback
-            zip -qry $GITHUB_WORKSPACE/frontend.zip ./
-            aws s3 cp $GITHUB_WORKSPACE/frontend.zip s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/toolbox2/${{ inputs.release_version }}/frontend.zip --region ${{ needs.initial-tasks.outputs.region }}
+            SRC_BUCKET="tbp020-toolboxplus-q-ue1"
           fi
+          [ -n "$SRC_BUCKET" ] || { echo "SRC_BUCKET not set"; exit 1; }
 
-          # Setting CloudFront
-          aws cloudfront create-invalidation --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} --paths "/*"
+          # 1) sync SRC → PROD (metadata copied as-is)
+          aws s3 sync s3://$SRC_BUCKET/ s3://${{ needs.initial-tasks.outputs.s3_bucket }} \
+            --only-show-errors --delete \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          # 2) rollback artifact
+          mkdir -p ./rollback
+          aws s3 sync s3://$SRC_BUCKET/ ./rollback \
+            --only-show-errors
+          (cd ./rollback && zip -qry $GITHUB_WORKSPACE/frontend.zip ./)
+          aws s3 cp $GITHUB_WORKSPACE/frontend.zip \
+            s3://${{ needs.initial-tasks.outputs.s3_rollback_bucket }}/frontend/toolbox2/${{ inputs.release_version }}/frontend.zip \
+            --only-show-errors \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          # 3) Enforce PROD Cache-Control on root files (REPLACE requires content-type)
+          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/index.html s3://${{ needs.initial-tasks.outputs.s3_bucket }}/index.html \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=0,s-maxage=31536000" \
+            --content-type "text/html" \
+            --only-show-errors \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/robots.txt s3://${{ needs.initial-tasks.outputs.s3_bucket }}/robots.txt \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=0,s-maxage=31536000" \
+            --content-type "text/plain" \
+            --only-show-errors \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/favicon.ico s3://${{ needs.initial-tasks.outputs.s3_bucket }}/favicon.ico \
+            --metadata-directive REPLACE \
+            --cache-control "max-age=0,s-maxage=31536000" \
+            --content-type "image/x-icon" \
+            --only-show-errors \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          # 4) CloudFront minimal invalidation
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ needs.initial-tasks.outputs.cloudfront_distribution_id }} \
+            --paths "/index.html" "/robots.txt" "/favicon.ico"
 
   notify-success:
     if: ${{ success() }}
@@ -228,7 +265,7 @@ jobs:
                   "body": [
                     {
                       "type": "TextBlock",
-                      "text": "✅ DesignPro ${{ inputs.target_branch }} Frontend Deployment Success",
+                      "text": "✅ Toolbox ${{ inputs.target_branch }} Frontend Deployment Success",
                       "weight": "Bolder",
                       "color": "Good"
                     },
@@ -262,7 +299,7 @@ jobs:
                   "body": [
                     {
                       "type": "TextBlock",
-                      "text": "🚨 DesignPro ${{ inputs.target_branch }} Frontend Deployment failed",
+                      "text": "🚨 Toolbox ${{ inputs.target_branch }} Frontend Deployment failed",
                       "weight": "Bolder",
                       "color": "Attention"
                     },
