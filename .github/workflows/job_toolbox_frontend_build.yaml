@@ -265,7 +265,7 @@ jobs:
                   "body": [
                     {
                       "type": "TextBlock",
-                      "text": "✅ Toolbox ${{ inputs.target_branch }} Frontend Deployment Success",
+                      "text": "✅ DesignPro ${{ inputs.target_branch }} Frontend Deployment Success",
                       "weight": "Bolder",
                       "color": "Good"
                     },
@@ -299,7 +299,7 @@ jobs:
                   "body": [
                     {
                       "type": "TextBlock",
-                      "text": "🚨 Toolbox ${{ inputs.target_branch }} Frontend Deployment failed",
+                      "text": "🚨 DesignPro ${{ inputs.target_branch }} Frontend Deployment failed",
                       "weight": "Bolder",
                       "color": "Attention"
                     },
