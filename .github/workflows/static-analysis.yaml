@@ -87,14 +87,14 @@ jobs:
 
       - name: Checkout
         if: inputs.DISPATCH == false
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:       
           path: ./${{ inputs.REPO_NAME }}
           token: ${{ secrets.GH_MANAGEPACKAGE_TOKEN }}
 
       - name: Checkout-dispatch
         if: inputs.DISPATCH == true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: hanwhavision/${{ inputs.REPO_NAME }}
           ref: refs/heads/${{ inputs.BRANCH }}

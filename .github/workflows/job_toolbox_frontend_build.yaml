@@ -76,7 +76,7 @@ jobs:
     steps:
       - name: Checkout
         if: inputs.target_branch != 'production'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: hanwhavision/${{ inputs.frontend_repo }}
           ref: refs/heads/${{ inputs.target_branch}}
