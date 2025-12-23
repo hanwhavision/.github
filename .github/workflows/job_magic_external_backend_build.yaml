@@ -84,7 +84,7 @@ jobs:
 
       - name: Setup Node.js
         if: inputs.target_branch != 'production'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -103,7 +103,7 @@ jobs:
           npm install --no-optional
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ vars.GH_OIDC_ROLE }}
           role-session-name: GitHub-Actions-Assume
