@@ -45,16 +45,16 @@ jobs:
       - name: Repository List
         id: set_env
         run: |
-          if [ "${{ inputs.jira_key }}" == "MAG" ]; then
+          if [ "${{ inputs.jira_key }}" == "DH" ]; then
             backend_repo=magic-common-backend
-            toolbox_frontend_repo=magic-toolbox-frontend
             datahub_frontend_repo=magic-cms-frontend
             matrix=$(jq -c '.' .github/workflows/files/matrix-magic-target-repo.json)
-
             echo "backend_repo=$backend_repo" >> $GITHUB_OUTPUT
-            echo "toolbox_frontend_repo=$toolbox_frontend_repo" >> $GITHUB_OUTPUT
             echo "datahub_frontend_repo=$datahub_frontend_repo" >> $GITHUB_OUTPUT
             echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          elif [ "${{ inputs.jira_key }}" == "MAG" ]; then
+            toolbox_frontend_repo=magic-toolbox-frontend
+            echo "toolbox_frontend_repo=$toolbox_frontend_repo" >> $GITHUB_OUTPUT
           elif [ "${{ inputs.jira_key }}" == "DHE" ]; then
             external_repo=datahub-external-api
 
