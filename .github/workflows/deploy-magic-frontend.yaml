@@ -15,7 +15,7 @@ on:
         required: false
         description: "List of node version which want to scan"
         type: string
-        default: "['20.14.0']" #"['18.16']"
+        default: "['20.19.0']" #"['18.16']"
       release_env:
         description: 'Release Environment'
         required: true
