@@ -1,0 +1,38 @@
+name: JIRA Bug Trigger (Call Central Workflow)
+
+on:
+  # JIRA Automation에서 webhook으로 트리거
+  repository_dispatch:
+    types: [jira-bug-created]
+
+  # 수동 트리거도 가능하도록 설정
+  workflow_dispatch:
+    inputs:
+      jira_issue_key:
+        description: 'JIRA Issue Key (e.g., PX-12345)'
+        required: true
+        type: string
+
+jobs:
+  trigger-central-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger central JIRA Bug to Copilot workflow
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.TOKEN_JENKINS }}
+          script: |
+            const jiraKey = "${{ github.event.client_payload.jira_issue_key || inputs.jira_issue_key }}";
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: '.github',
+              workflow_id: 'jira-bug-to-copilot.yml',
+              ref: 'main',
+              inputs: {
+                jira_issue_key: jiraKey,
+                source_repo: context.repo.repo,
+              }
+            });
+
+            core.info(`Triggered central workflow for JIRA issue: ${jiraKey}`);

@@ -1,16 +1,20 @@
 name: JIRA Bug to GitHub Copilot Automation
 
-on:  
+on:
   # JIRA Automation에서 webhook으로 트리거
   repository_dispatch:
     types: [jira-bug-created]
-  
+
   # 수동 트리거도 가능하도록 설정
   workflow_dispatch:
     inputs:
       jira_issue_key:
         description: 'JIRA Issue Key (e.g., PX-12345)'
         required: true
+        type: string
+      source_repo:
+        description: 'Source repository name that triggered this workflow (e.g., wisenet_product)'
+        required: false
         type: string
 
 env:
@@ -23,12 +27,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write     
-      
+      issues: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
+
       - name: Create GitHub Issue and Assign to Copilot
         uses: actions/github-script@v7
         env:
@@ -40,9 +44,9 @@ jobs:
           script: |
             const script = require('./.github/scripts/create-github-issue.js');
             const jiraKey = "${{ github.event.client_payload.jira_issue_key || inputs.jira_issue_key }}";
-            
+
             // Set environment variable for the script
             process.env.JIRA_ISSUE_KEY = jiraKey;
-            
+
             // Execute the script
             return await script({github, context, core});
