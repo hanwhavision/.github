@@ -181,7 +181,7 @@ jobs:
             --exact-timestamps \
             --exclude "*" \
             --include "robots.txt" \
-            --cache-control public,max-age=3600 \
+            --cache-control public,max-age=3600,s-maxage=31536000 \
             --region ${{ needs.initial-tasks.outputs.region }}
 
           # favicon.ico: 하루 TTL
@@ -190,7 +190,7 @@ jobs:
             --exact-timestamps \
             --exclude "*" \
             --include "favicon.ico" \
-            --cache-control public,max-age=86400 \
+            --cache-control public,max-age=86400,s-maxage=31536000 \
             --region ${{ needs.initial-tasks.outputs.region }}
 
           # rollback artifact
@@ -248,14 +248,14 @@ jobs:
 
           aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/robots.txt s3://${{ needs.initial-tasks.outputs.s3_bucket }}/robots.txt \
             --metadata-directive REPLACE \
-            --cache-control "public,max-age=3600" \
+            --cache-control "public,max-age=3600,s-maxage=31536000" \
             --content-type "text/plain" \
             --only-show-errors \
             --region ${{ needs.initial-tasks.outputs.region }}
 
           aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/favicon.ico s3://${{ needs.initial-tasks.outputs.s3_bucket }}/favicon.ico \
             --metadata-directive REPLACE \
-            --cache-control "public,max-age=86400" \
+            --cache-control "public,max-age=86400,s-maxage=31536000" \
             --content-type "image/x-icon" \
             --only-show-errors \
             --region ${{ needs.initial-tasks.outputs.region }}
