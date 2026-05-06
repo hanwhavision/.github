@@ -165,15 +165,32 @@ jobs:
             --cache-control max-age=31536000,s-maxage=31536000,immutable \
             --region ${{ needs.initial-tasks.outputs.region }}
           
-          # root files (fresh)
+          # root files - per-file cache policy
+          # index.html: 항상 재검증 (no-cache)
           aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} \
             --no-progress --only-show-errors \
             --exact-timestamps \
             --exclude "*" \
             --include "index.html" \
+            --cache-control no-cache \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          # robots.txt: 짧은 TTL (1 hour)
+          aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} \
+            --no-progress --only-show-errors \
+            --exact-timestamps \
+            --exclude "*" \
             --include "robots.txt" \
+            --cache-control public,max-age=3600 \
+            --region ${{ needs.initial-tasks.outputs.region }}
+
+          # favicon.ico: 하루 TTL
+          aws s3 sync ./apps/toolbox/dist s3://${{ needs.initial-tasks.outputs.s3_bucket }} \
+            --no-progress --only-show-errors \
+            --exact-timestamps \
+            --exclude "*" \
             --include "favicon.ico" \
-            --cache-control max-age=0,s-maxage=31536000 \
+            --cache-control public,max-age=86400 \
             --region ${{ needs.initial-tasks.outputs.region }}
 
           # rollback artifact
@@ -224,21 +241,21 @@ jobs:
           # 3) Enforce PROD Cache-Control on root files (REPLACE requires content-type)
           aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/index.html s3://${{ needs.initial-tasks.outputs.s3_bucket }}/index.html \
             --metadata-directive REPLACE \
-            --cache-control "max-age=0,s-maxage=31536000" \
+            --cache-control "no-cache" \
             --content-type "text/html" \
             --only-show-errors \
             --region ${{ needs.initial-tasks.outputs.region }}
 
           aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/robots.txt s3://${{ needs.initial-tasks.outputs.s3_bucket }}/robots.txt \
             --metadata-directive REPLACE \
-            --cache-control "max-age=0,s-maxage=31536000" \
+            --cache-control "public,max-age=3600" \
             --content-type "text/plain" \
             --only-show-errors \
             --region ${{ needs.initial-tasks.outputs.region }}
 
           aws s3 cp s3://${{ needs.initial-tasks.outputs.s3_bucket }}/favicon.ico s3://${{ needs.initial-tasks.outputs.s3_bucket }}/favicon.ico \
             --metadata-directive REPLACE \
-            --cache-control "max-age=0,s-maxage=31536000" \
+            --cache-control "public,max-age=86400" \
             --content-type "image/x-icon" \
             --only-show-errors \
             --region ${{ needs.initial-tasks.outputs.region }}
